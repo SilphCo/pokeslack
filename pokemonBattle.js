@@ -1,4 +1,8 @@
 
+import {
+  sayAsPokemon
+} from "./utils";
+
 export default class PokemonBattle {
 
   constructor(conversation, pokemon) {
@@ -12,20 +16,22 @@ export default class PokemonBattle {
 
   start() {
 
-    let attackingPokemon = this.pokemon[1];
-    let defendingPokemon = this.pokemon[0];
-
-    console.log('taking turn...');
+    let attackingPokemon = this.pokemon[0];
+    let defendingPokemon = this.pokemon[1];
 
     this.takeTurn(attackingPokemon, defendingPokemon);
 
   }
 
   end(winner, loser) {
-    this.conversation.say(`Battle ended, ${winner.name} defeated ${loser.name}`);
+
+    sayAsPokemon(this.conversation, loser, [
+      `${loser.name} fainted! ${winner.name} won the battle!`
+    ]);
+
   }
 
-  takeTurn(attackingPokemon, defendingPokemon) {
+  takeTurn(attackingPokemon, defendingPokemon, callback) {
 
     if(attackingPokemon.isWild) {
 
@@ -33,7 +39,9 @@ export default class PokemonBattle {
 
       let damage = this.determineDamage(attackingPokemon, defendingPokemon, move);
 
-      this.conversation.say(`${attackingPokemon.name} used ${move.name} and dealt ${damage} damage.`);
+      sayAsPokemon(this.conversation, attackingPokemon, [
+        `*${attackingPokemon.name}* used *${move.name}* and dealt *${damage}* damage.`
+      ], false, 'Wild');
 
       let defendingPokemonLost = this.dealDamage(attackingPokemon, defendingPokemon, damage);
 
@@ -41,15 +49,55 @@ export default class PokemonBattle {
         return this.end(attackingPokemon, defendingPokemon);
       }
       
-      this.conversation.say(`${defendingPokemon.name} now has ${defendingPokemon.health} HP left`);
+      sayAsPokemon(this.conversation, defendingPokemon, [
+        `*${defendingPokemon.name}* now has *${defendingPokemon.health}* HP left`
+      ]);
 
-      this.conversation.say('next turn..');
-
-      // this.takeTurn(defendingPokemon, attackingPokemon);
+      this.takeTurn(defendingPokemon, attackingPokemon);
 
     } else {
 
-      console.log('not wild');  
+      this.conversation.ask("What move do you want to use?", (message, conversation) => {
+
+        let moveName = message.text;
+        let move;
+
+        for(let i = 0; i < attackingPokemon.moves.length; i++) {
+          if(attackingPokemon.moves[i].name === moveName) {
+            move = attackingPokemon.moves[i];
+            break;
+          }
+        }
+
+        if(!move) {
+          sayAsPokemon(attackingPokemon, [
+            `${attackingPokemon.name} doesn't know ${moveName}!`
+          ]);
+          this.conversation.repeat();
+          return conversation.next();
+        }
+
+        this.conversation.next();
+
+        let damage = this.determineDamage(attackingPokemon, defendingPokemon, move);
+
+        sayAsPokemon(this.conversation, attackingPokemon, [
+          `*${attackingPokemon.name}* used *${move.name}* and dealt *${damage}* damage.`
+        ]);
+
+        let defendingPokemonLost = this.dealDamage(attackingPokemon, defendingPokemon, damage);
+
+        if(defendingPokemonLost) {
+          return this.end(attackingPokemon, defendingPokemon);
+        }
+
+        sayAsPokemon(this.conversation, defendingPokemon, [
+          `*${defendingPokemon.name}* now has *${defendingPokemon.health}* HP left`
+        ], false, 'Wild');
+
+        this.takeTurn(defendingPokemon, attackingPokemon);
+
+      });
 
     }
 

@@ -75,9 +75,10 @@ class Pokemon {
     for(let i = 0; i < NUM_MOVES; i++) {
       if(possibleMoves.length === 0) break;
       let index = Math.floor(Math.random()*possibleMoves.length);
-      possibleMoves[index].name = possibleMoves[index].move.name; // HACK
-      this.moves.push(possibleMoves[index]);
-      this._moves[possibleMoves[index].name] = possibleMoves[index];
+      let move = possibleMoves[index];
+      move.name = move.move.name; // HACK
+      this.moves.push(move);
+      this._moves[move.name] = move;
       possibleMoves.splice(index, 1);
     }
   }

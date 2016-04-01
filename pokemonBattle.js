@@ -30,26 +30,11 @@ export default class PokemonBattle {
   async takeTurn (attackingPokemon, defendingPokemon, callback) {
     if (attackingPokemon.isWild) {
       let move = attackingPokemon.determineAttackMove(defendingPokemon);
-
-      let damage;
-      try {
-        damage = await this.determineDamage(attackingPokemon, defendingPokemon, move);
-      } catch (err) {
-        throw err;
-      }
-
-      this.processDamage(attackingPokemon, defendingPokemon, move, damage);
+      this.processDamage(attackingPokemon, defendingPokemon, move);
     } else {
       let message = await askQuestion(this.conversation, 'What move do you want to use?');
-      let moveName = message.text;
-      let move;
-
-      for (let i = 0; i < attackingPokemon.moves.length; i++) {
-        if (attackingPokemon.moves[i].name === moveName) {
-          move = attackingPokemon.moves[i];
-          break;
-        }
-      }
+      
+      let move = attackingPokemon.getMove(message.text);
 
       if (!move) {
         sayAsPokemon(this.conversation, attackingPokemon, [
@@ -61,14 +46,7 @@ export default class PokemonBattle {
 
       // this.conversation.next();
 
-      let damage;
-      try {
-        damage = await this.determineDamage(attackingPokemon, defendingPokemon, move);
-      } catch (err) {
-        throw err;
-      }
-
-      this.processDamage(attackingPokemon, defendingPokemon, move, damage);
+      this.processDamage(attackingPokemon, defendingPokemon, move);
     }
   }
 
@@ -105,8 +83,15 @@ export default class PokemonBattle {
     return dmg;
   }
 
-  async processDamage (attackingPokemon, defendingPokemon, move, damage) {
+  async processDamage (attackingPokemon, defendingPokemon, move) {  
+    try {
+      var damage = await this.determineDamage(attackingPokemon, defendingPokemon, move);
+    } catch (err) {
+      throw err;
+    }
+
     let finished = await this.dealDamage(attackingPokemon, defendingPokemon, move, damage);
+
     if (finished) {
       return this.end(attackingPokemon, defendingPokemon);
     }

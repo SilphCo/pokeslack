@@ -89,6 +89,17 @@ class Pokemon {
     }
   }
 
+  getMove (name) {
+    let move;
+    for (let i = 0; i < this.moves.length; i++) {
+      if (this.moves[i].name === name) {
+        move = this.moves[i];
+        break;
+      }
+    }
+    return move
+  }
+
   determineAttackMove () {
     let moveIndex = Math.floor(Math.random() * this.moves.length);
     let move = this.moves[moveIndex];

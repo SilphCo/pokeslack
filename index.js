@@ -26,29 +26,27 @@ controller.hears('gen', listenMethods, function (bot, message) {
       return bot.reply(message, err.toString());
     }
 
-    let wildPokemon = messageToPokemon(message, true);
+    (async function() {
+      let wildPokemon = messageToPokemon(message, true);
 
-    wildPokemon.bootstrap().then(function () {
+      try {
+        await wildPokemon.bootstrap();
+      } catch (err) {
+        throw err;
+      }
+
       sayAsPokemon(conversation, wildPokemon, [
         `A level *${wildPokemon.level} ${wildPokemon.name}* appeared. It has *${wildPokemon.health}* HP.`
       ], true, 'Wild');
 
-      askPlayerForPokemon(bot, conversation, function (err, pokemon) {
-        if (err) {
-          console.error('Error asking player for pokemon:', err);
-          return;
-        }
+      let pokemon = await askPlayerForPokemon(bot, conversation);
 
-        console.log('starting battle..');
+      console.log('starting battle..');
 
-        let battle = new PokemonBattle(conversation, [ pokemon, wildPokemon ]);
+      let battle = new PokemonBattle(conversation, [ pokemon, wildPokemon ]);
 
-        battle.start();
-      });
-    }).catch(function (err) {
-      console.error(err);
-      conversation.say(err.toString());
-    });
+      await battle.start();
+    }());
   });
 });
 

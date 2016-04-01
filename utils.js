@@ -37,23 +37,39 @@ export function messageToPokemon (message, isWild) {
   return new Pokemon(name, level, isWild);
 }
 
-export function askPlayerForPokemon (bot, conversation, callback) {
-  conversation.ask('What pokemon do you want to use? (type \'chose <id> <level>\')', function (message, conversation) {
-    if (message.text.split(' ')[0] !== 'chose') {
-      conversation.repeat();
-      return conversation.next();
-    }
+export async function askPlayerForPokemon (bot, conversation) {
+  try {
+    var message = await askQuestion(conversation, 'What pokemon do you want to use? (type \'chose <id> <level>\')');
+  } catch (err) {
+    throw err;
+  }
 
-    let pokemon = messageToPokemon(message);
+  if (message.text.split(' ')[0] !== 'chose') {
+    conversation.repeat();
+    return conversation.next();
+  }
 
-    pokemon.bootstrap().then(function () {
-      sayAsPokemon(conversation, pokemon, [
-        `You chose a level *${pokemon.level}* *${pokemon.name}*`
-      ], true);
+  let pokemon = messageToPokemon(message);
 
-      conversation.next();
+  try {
+    await pokemon.bootstrap();
+  } catch (err) {
+    throw err;
+  }
 
-      return callback(null, pokemon);
-    }).catch(callback);
+  sayAsPokemon(conversation, pokemon, [
+    `You chose a level *${pokemon.level}* *${pokemon.name}*`
+  ], true);
+
+  conversation.next();
+
+  return pokemon;
+}
+
+export async function askQuestion (conversation, question) {
+  return new Promise(function (resolve, reject) {
+    conversation.ask(question, function (message, conversation) {
+      return resolve(message);
+    });
   });
 }

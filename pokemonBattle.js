@@ -1,7 +1,8 @@
 import Pokedex from 'pokedex-promise-v2';
 
 import {
-  sayAsPokemon
+  sayAsPokemon,
+  askQuestion
 } from './utils';
 
 const pokedex = new Pokedex();
@@ -13,100 +14,107 @@ export default class PokemonBattle {
     this.pokemon = pokemon;
   }
 
-  start () {
+  async start () {
     let attackingPokemon = this.pokemon[0];
     let defendingPokemon = this.pokemon[1];
 
-    this.takeTurn(attackingPokemon, defendingPokemon);
+    await this.takeTurn(attackingPokemon, defendingPokemon);
   }
 
-  end (winner, loser) {
+  async end (winner, loser) {
     sayAsPokemon(this.conversation, loser, [
       `${loser.name} fainted! ${winner.name} won the battle!`
     ]);
   }
 
-  takeTurn (attackingPokemon, defendingPokemon, callback) {
+  async takeTurn (attackingPokemon, defendingPokemon, callback) {
     if (attackingPokemon.isWild) {
       let move = attackingPokemon.determineAttackMove(defendingPokemon);
 
-      this.determineDamage(attackingPokemon, defendingPokemon, move, (err, damage) => {
-        if (err) {
-          throw err;
-        }
+      let damage;
+      try {
+        damage = await this.determineDamage(attackingPokemon, defendingPokemon, move);
+      } catch (err) {
+        throw err;
+      }
 
-        this.processDamage(attackingPokemon, defendingPokemon, move, damage);
-      });
+      this.processDamage(attackingPokemon, defendingPokemon, move, damage);
     } else {
-      this.conversation.ask('What move do you want to use?', (message, conversation) => {
-        let moveName = message.text;
-        let move;
+      let message = await askQuestion(this.conversation, 'What move do you want to use?');
+      let moveName = message.text;
+      let move;
 
-        for (let i = 0; i < attackingPokemon.moves.length; i++) {
-          if (attackingPokemon.moves[i].name === moveName) {
-            move = attackingPokemon.moves[i];
-            break;
-          }
+      for (let i = 0; i < attackingPokemon.moves.length; i++) {
+        if (attackingPokemon.moves[i].name === moveName) {
+          move = attackingPokemon.moves[i];
+          break;
         }
+      }
 
-        if (!move) {
-          sayAsPokemon(this.conversation, attackingPokemon, [
-            `${attackingPokemon.name} doesn't know ${moveName}!`
-          ], null, null);
-          this.conversation.repeat();
-          return this.conversation.next();
-        }
+      if (!move) {
+        sayAsPokemon(this.conversation, attackingPokemon, [
+          `${attackingPokemon.name} doesn't know ${moveName}!`
+        ], null, null);
+        this.conversation.repeat();
+        return this.conversation.next();
+      }
 
-        // this.conversation.next();
+      // this.conversation.next();
 
-        this.determineDamage(attackingPokemon, defendingPokemon, move, (err, damage) => {
-          if (err) {
-            throw err;
-          }
+      let damage;
+      try {
+        damage = await this.determineDamage(attackingPokemon, defendingPokemon, move);
+      } catch (err) {
+        throw err;
+      }
 
-          this.processDamage(attackingPokemon, defendingPokemon, move, damage);
-        });
-      });
+      this.processDamage(attackingPokemon, defendingPokemon, move, damage);
     }
   }
 
-  determineDamage (attackingPokemon, defendingPokemon, move, callback) {
+  async determineDamage (attackingPokemon, defendingPokemon, move, callback) {
     // http://www.smogon.com/bw/articles/bw_complete_damage_formula
     // http://bulbapedia.bulbagarden.net/wiki/Damage
+    let moveData;
 
-    pokedex.getMoveByName(move.name).then((moveData) => {
-      console.log('moveData:', moveData.id);
+    try {
+      moveData = await pokedex.getMoveByName(move.name);
+    } catch (err) {
+      throw err;
+    }
 
-      let isSpecial = false; // determine this
+    console.log('moveData:', moveData.id);
 
-      let attackPower = isSpecial ? attackingPokemon.stats.attack : attackingPokemon.stats.spAttack;
-      let defensePower = isSpecial ? defendingPokemon.stats.defense : defendingPokemon.stats.spDefense;
+    let isSpecial = false; // determine this
 
-      this.conversation.say([
-        'attackPower ' + attackPower,
-        'defensePower ' + defensePower,
-        'move power ' + moveData.power
-      ].join('\n'));
+    let attackPower = isSpecial ? attackingPokemon.stats.attack : attackingPokemon.stats.spAttack;
+    let defensePower = isSpecial ? defendingPokemon.stats.defense : defendingPokemon.stats.spDefense;
 
-      this.conversation.next();
+    this.conversation.say([
+      'attackPower ' + attackPower,
+      'defensePower ' + defensePower,
+      'move power ' + moveData.power
+    ].join('\n'));
 
-      let dmg = 50;
+    this.conversation.next();
 
-      // let dmg = (((2 * attackingPokemon.level) / 5 + 2) * moveData.power * attackPower / defensePower / 50 + 2);
+    let dmg = 50;
 
-      return callback(null, dmg);
-    }).catch(callback);
+    // let dmg = (((2 * attackingPokemon.level) / 5 + 2) * moveData.power * attackPower / defensePower / 50 + 2);
+
+    return dmg;
   }
 
-  processDamage (attackingPokemon, defendingPokemon, move, damage) {
-    if (this.dealDamage(attackingPokemon, defendingPokemon, move, damage)) {
+  async processDamage (attackingPokemon, defendingPokemon, move, damage) {
+    let finished = await this.dealDamage(attackingPokemon, defendingPokemon, move, damage);
+    if (finished) {
       return this.end(attackingPokemon, defendingPokemon);
     }
 
-    this.takeTurn(defendingPokemon, attackingPokemon);
+    await this.takeTurn(defendingPokemon, attackingPokemon);
   }
 
-  dealDamage (attackingPokemon, defendingPokemon, move, damage) {
+  async dealDamage (attackingPokemon, defendingPokemon, move, damage) {
     defendingPokemon.health -= damage;
 
     sayAsPokemon(this.conversation, attackingPokemon, [

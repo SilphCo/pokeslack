@@ -35,23 +35,7 @@ export default class PokemonBattle {
           throw err;
         }
 
-        console.log('damage:', damage);
-
-        sayAsPokemon(this.conversation, attackingPokemon, [
-          `*${attackingPokemon.name}* used *${move.name}* and dealt *${damage}* damage.`
-        ], false, 'Wild');
-
-        let defendingPokemonLost = this.dealDamage(attackingPokemon, defendingPokemon, damage);
-
-        if (defendingPokemonLost) {
-          return this.end(attackingPokemon, defendingPokemon);
-        }
-
-        sayAsPokemon(this.conversation, defendingPokemon, [
-          `*${defendingPokemon.name}* now has *${defendingPokemon.health}* HP left`
-        ]);
-
-        this.takeTurn(defendingPokemon, attackingPokemon);
+        this.processDamage(attackingPokemon, defendingPokemon, move, damage);
       });
     } else {
       this.conversation.ask('What move do you want to use?', (message, conversation) => {
@@ -80,23 +64,7 @@ export default class PokemonBattle {
             throw err;
           }
 
-          console.log('damage:', damage);
-
-          sayAsPokemon(this.conversation, attackingPokemon, [
-            `*${attackingPokemon.name}* used *${move.name}* and dealt *${damage}* damage.`
-          ]);
-
-          let defendingPokemonLost = this.dealDamage(attackingPokemon, defendingPokemon, damage);
-
-          if (defendingPokemonLost) {
-            return this.end(attackingPokemon, defendingPokemon);
-          }
-
-          sayAsPokemon(this.conversation, defendingPokemon, [
-            `*${defendingPokemon.name}* now has *${defendingPokemon.health}* HP left`
-          ], false, 'Wild');
-
-          this.takeTurn(defendingPokemon, attackingPokemon);
+          this.processDamage(attackingPokemon, defendingPokemon, move, damage);
         });
       });
     }
@@ -130,8 +98,20 @@ export default class PokemonBattle {
     }).catch(callback);
   }
 
-  dealDamage (attackingPokemon, defendingPokemon, damage) {
+  processDamage (attackingPokemon, defendingPokemon, move, damage) {
+    if (this.dealDamage(attackingPokemon, defendingPokemon, move, damage)) {
+      return this.end(attackingPokemon, defendingPokemon);
+    }
+
+    this.takeTurn(defendingPokemon, attackingPokemon);
+  }
+
+  dealDamage (attackingPokemon, defendingPokemon, move, damage) {
     defendingPokemon.health -= damage;
+
+    sayAsPokemon(this.conversation, attackingPokemon, [
+      `*${attackingPokemon.name}* used *${move.name}* and dealt *${damage}* damage, leaving *${defendingPokemon.name}* with *${defendingPokemon.health}* HP`
+    ], false, 'Wild');
 
     if (defendingPokemon.health < 1) {
       return true;
